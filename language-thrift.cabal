@@ -45,7 +45,8 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      ansi-wl-pprint ==0.6.*
+      prettyprinter >=1.2 && <2
+    , prettyprinter-ansi-terminal >=1.1 && <2
     , base >=4.7 && <5
     , containers >=0.5 && <0.7
     , megaparsec >=9.0 && <10.0
@@ -66,7 +67,8 @@ test-suite spec
       hspec-discover:hspec-discover >=2.1
   build-depends:
       QuickCheck >=2.5
-    , ansi-wl-pprint ==0.6.*
+    , prettyprinter >=1.2 && <2
+    , prettyprinter-ansi-terminal >=1.1 && <2
     , base >=4.7 && <5
     , containers >=0.5 && <0.7
     , hspec >=2.0
