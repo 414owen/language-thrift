@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP               #-}
-{-# LANGUAGE NamedFieldPuns    #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE NamedFieldPuns       #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 -- |
 -- Module      :  Language.Thrift.Pretty
 -- Copyright   :  (c) Abhinav Gupta 2016
@@ -69,7 +69,6 @@ import qualified Data.Text as Text
 
 import Text.PrettyPrint.ANSI.Leijen
     ( Doc
-    , Pretty (..)
     , align
     , bold
     , cyan
@@ -93,11 +92,10 @@ import Text.PrettyPrint.ANSI.Leijen
     , (<$$>)
     , (<$>)
     , (<+>)
-    , (<>)
     )
 
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import qualified Language.Thrift.Internal.AST as T
-import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 -- | Configuration for the pretty printer.
 data Config = Config
@@ -127,38 +125,23 @@ program c T.Program{..} =
         else vsep (map header programHeaders) <$> line
     ) <> map (definition c) programDefinitions `sepBy` (line <> line)
 
-instance Pretty (T.Program a) where
-    pretty = program defaultConfig
-
 -- | Print the headers for a program.
 header :: T.Header ann -> Doc
 header (T.HeaderInclude inc)  = include inc
 header (T.HeaderNamespace ns) = namespace ns
 
-instance Pretty (T.Header a) where
-    pretty = header
-
 include :: T.Include ann -> Doc
 include T.Include{..} = reserved "include" <+> literal includePath
-
-instance Pretty (T.Include a) where
-    pretty = include
 
 namespace :: T.Namespace ann -> Doc
 namespace T.Namespace{..} = hsep
     [reserved "namespace", text namespaceLanguage, text namespaceName]
-
-instance Pretty (T.Namespace a) where
-    pretty = namespace
 
 -- | Print a constant, type, or service definition.
 definition :: Config -> T.Definition ann -> Doc
 definition c (T.ConstDefinition cd)  = constant c cd
 definition c (T.TypeDefinition def)  = typeDefinition c def
 definition c (T.ServiceDefinition s) = service c s
-
-instance Pretty (T.Definition a) where
-    pretty = definition defaultConfig
 
 constant :: Config -> T.Const ann -> Doc
 constant c T.Const{..} = constDocstring $$ hsep
@@ -168,9 +151,6 @@ constant c T.Const{..} = constDocstring $$ hsep
     , equals
     , constantValue c constValue
     ]
-
-instance Pretty (T.Const a) where
-    pretty = constant defaultConfig
 
 service :: Config -> T.Service ann -> Doc
 service c@Config{indentWidth} T.Service{..} =
@@ -182,9 +162,6 @@ service c@Config{indentWidth} T.Service{..} =
     extends = case serviceExtends of
       Nothing   -> empty
       Just name -> space <> reserved "extends" <+> text name
-
-instance Pretty (T.Service a) where
-    pretty = service defaultConfig
 
 -- | Pretty print a function definition.
 --
@@ -208,9 +185,6 @@ function c@Config{indentWidth} T.Function{..} = functionDocstring $$
           then reserved "oneway" <> space
           else empty
 
-instance Pretty (T.Function a) where
-    pretty = function defaultConfig
-
 typeDefinition :: Config -> T.Type ann -> Doc
 typeDefinition c td = case td of
   T.TypedefType   t -> c `typedef`   t
@@ -218,25 +192,16 @@ typeDefinition c td = case td of
   T.StructType    t -> c `struct`    t
   T.SenumType     t -> c `senum`     t
 
-instance Pretty (T.Type a) where
-    pretty = typeDefinition defaultConfig
-
 typedef :: Config -> T.Typedef ann -> Doc
 typedef c T.Typedef{..} = typedefDocstring $$
     reserved "typedef" <+> typeReference c typedefTargetType <+>
     declare typedefName <> typeAnnots c typedefAnnotations
-
-instance Pretty (T.Typedef a) where
-    pretty = typedef defaultConfig
 
 enum :: Config -> T.Enum ann -> Doc
 enum c@Config{indentWidth} T.Enum{..} = enumDocstring $$
     reserved "enum" <+> declare enumName <+>
       block indentWidth (comma <> line) (map (enumValue c) enumValues)
     <> typeAnnots c enumAnnotations
-
-instance Pretty (T.Enum a) where
-    pretty = enum defaultConfig
 
 struct :: Config -> T.Struct ann -> Doc
 struct c@Config{indentWidth} T.Struct{..} = structDocstring $$
@@ -248,9 +213,6 @@ struct c@Config{indentWidth} T.Struct{..} = structDocstring $$
         T.StructKind    -> reserved "struct"
         T.UnionKind     -> reserved "union"
         T.ExceptionKind -> reserved "exception"
-
-instance Pretty (T.Struct a) where
-    pretty = struct defaultConfig
 
 union :: Config -> T.Struct ann -> Doc
 union = struct
@@ -265,9 +227,6 @@ senum c@Config{indentWidth} T.Senum{..} = senumDocstring $$
     reserved "senum" <+> declare senumName <+>
       encloseSep indentWidth lbrace rbrace comma (map literal senumValues)
     <> typeAnnots c senumAnnotations
-
-instance Pretty (T.Senum a) where
-    pretty = senum defaultConfig
 
 field :: Config -> T.Field ann -> Doc
 field c T.Field{..} = fieldDocstring $$ hcat
@@ -286,15 +245,9 @@ field c T.Field{..} = fieldDocstring $$ hcat
     , typeAnnots c fieldAnnotations
     ]
 
-instance Pretty (T.Field a) where
-    pretty = field defaultConfig
-
 requiredness :: T.FieldRequiredness -> Doc
 requiredness T.Optional = reserved "optional"
 requiredness T.Required = reserved "required"
-
-instance Pretty T.FieldRequiredness where
-    pretty = requiredness
 
 enumValue :: Config -> T.EnumDef ann -> Doc
 enumValue c T.EnumDef{..} = enumDefDocstring $$
@@ -303,9 +256,6 @@ enumValue c T.EnumDef{..} = enumDefDocstring $$
     value = case enumDefValue of
       Nothing -> empty
       Just v  -> space <> equals <+> integer v
-
-instance Pretty (T.EnumDef a) where
-    pretty = enumValue defaultConfig
 
 -- | Pretty print a field type.
 typeReference :: Config -> T.TypeReference ann -> Doc
@@ -336,9 +286,6 @@ typeReference c ft = case ft of
         <> enclose langle rangle (typeReference c v)
         <> typeAnnots c anns
 
-instance Pretty (T.TypeReference a) where
-    pretty = typeReference defaultConfig
-
 -- | Pretty print a constant value.
 constantValue :: Config -> T.ConstValue ann -> Doc
 constantValue c@Config{indentWidth} value = case value of
@@ -351,9 +298,6 @@ constantValue c@Config{indentWidth} value = case value of
   T.ConstMap       vs _ ->
     encloseSep indentWidth lbrace rbrace comma $
       map (\(k, v) -> constantValue c k <> colon <+> constantValue c v) vs
-
-instance Pretty (T.ConstValue a) where
-    pretty = constantValue defaultConfig
 
 typeAnnots :: Config -> [T.TypeAnnotation] -> Doc
 typeAnnots _ [] = empty
@@ -368,21 +312,18 @@ typeAnnot T.TypeAnnotation{..} =
         Nothing -> empty
         Just v  -> space <> equals <+> literal v
 
-instance Pretty T.TypeAnnotation where
-    pretty = typeAnnot
-
 literal :: Text -> Doc
 literal = cyan . dquotes . text
     -- TODO: escaping?
 
 text :: Text -> Doc
-text = P.text . Text.unpack
+text = PP.text . Text.unpack
 
 reserved :: String -> Doc
-reserved = magenta . P.text
+reserved = magenta . PP.text
 
 op :: String -> Doc
-op = yellow . P.text
+op = yellow . PP.text
 
 declare :: Text -> Doc
 declare = bold . text
