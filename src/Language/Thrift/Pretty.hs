@@ -49,6 +49,7 @@ module Language.Thrift.Pretty
     , exception
     , senum
 
+    , requiredness
     , typeReference
     , constantValue
 
