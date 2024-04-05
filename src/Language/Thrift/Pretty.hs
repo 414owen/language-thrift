@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
 -- |
 -- Module      :  Language.Thrift.Pretty
@@ -37,6 +37,7 @@ module Language.Thrift.Pretty
     , include
     , namespace
 
+    , functionParameters
     , definition
     , constant
     , typeDefinition
@@ -65,6 +66,7 @@ module Language.Thrift.Pretty
 import Prelude hiding ((<$>))
 #endif
 
+import qualified Data.List as List
 import           Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -79,6 +81,7 @@ import Text.PrettyPrint.ANSI.Leijen
     , empty
     , enclose
     , group
+    , hardline
     , hcat
     , hsep
     , integer
@@ -164,15 +167,18 @@ service c@Config{indentWidth} T.Service{..} =
       Nothing   -> empty
       Just name -> space <> reserved "extends" <+> text name
 
+functionParameters :: Config -> [T.Field ann] -> Doc
+functionParameters c@Config{..}
+  = encloseSep indentWidth lparen rparen comma
+  . map (field c)
+
 -- | Pretty print a function definition.
 --
 function :: Config -> T.Function ann -> Doc
-function c@Config{indentWidth} T.Function{..} = functionDocstring $$
-  oneway <> returnType <+> text functionName <>
-    encloseSep
-        indentWidth lparen rparen comma
-        (map (field c) functionParameters) <>
-    exceptions <> typeAnnots c functionAnnotations <> semi
+function c@Config{indentWidth} T.Function{functionParameters = params, ..} = functionDocstring $$
+  oneway <> returnType <+> text functionName
+    <> functionParameters c params
+    <> exceptions <> typeAnnots c functionAnnotations <> semi
   where
     exceptions = case functionExceptions of
       Nothing -> empty
@@ -343,7 +349,8 @@ infixr 1 $$
 docstring :: Text -> Doc
 docstring = dullblue . wrapComments . Text.lines
   where
-    wrapComments ls = align . vsep
+    wrapComments [l] = text "/** " <> text l <> " */"
+    wrapComments ls = align . mconcat . List.intersperse hardline
       $ text "/**"
       : map (\l -> text " *" <+> text l) ls
      ++ [text " */"]
